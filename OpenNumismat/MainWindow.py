@@ -45,7 +45,6 @@ from OpenNumismat.LatestCollections import LatestCollections
 from OpenNumismat.Tools.CursorDecorators import waitCursorDecorator
 from OpenNumismat.Tools.misc import versiontuple
 from OpenNumismat import version
-from OpenNumismat.Collection.Export import ExportDialog
 from OpenNumismat.FindDialog import FindDialog
 from OpenNumismat.SummaryDialog import SummaryDialog
 from OpenNumismat.Collection.Import.Colnect import ColnectDialog, colnectAvailable
@@ -263,11 +262,6 @@ class MainWindow(QMainWindow):
 
         exportMenu = QMenu(self.tr("Export"), self)
         self.collectionActs.append(exportMenu)
-
-        exportMobileAct = QAction(self.tr("For Android version"), self)
-        exportMobileAct.triggered.connect(self.exportMobile)
-        self.collectionActs.append(exportMobileAct)
-        exportMenu.addAction(exportMobileAct)
 
         exportJsonAct = QAction(QIcon(':/json.png'), "JSON", self)
         exportJsonAct.triggered.connect(self.exportJson)
@@ -749,13 +743,6 @@ class MainWindow(QMainWindow):
             imp = ImportCoinSnap(self)
             imp.importData(file, self.viewTab.currentModel())
 
-    def exportMobile(self):
-        dialog = ExportDialog(self.collection, self)
-        res = dialog.exec()
-        if res == QDialog.Accepted:
-            self.collection.exportToMobile(dialog.params)
-        dialog.deleteLater()
-
     def exportJson(self):
         self.collection.exportToJson()
 
@@ -952,7 +939,7 @@ class MainWindow(QMainWindow):
     def about(self):
         QMessageBox.about(self, self.tr("About %s") % version.AppName,
                         "%s %s\n\n" % (version.AppName, version.Version) +
-                        "Copyright (C) 2011-2025 Vitaly Ignatov\n\n" +
+                        "Copyright (C) 2011-2026 Vitaly Ignatov\n\n" +
                         self.tr("%s is freeware licensed under a GPLv3.") %
                         version.AppName)
 

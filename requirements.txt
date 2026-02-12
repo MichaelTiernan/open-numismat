@@ -7,7 +7,10 @@ numpy~=2.2.2
 pillow~=11.1.0
 python-dateutil==2.9.0.post0
 pywin32==308; sys_platform == 'win32'
-rembg[cpu]~=2.0.65
-urllib3~=2.3.0
+rembg[cpu]==2.0.66
+scipy~=1.14.0
+urllib3~=2.6.3
 zxing-cpp~=2.3.0
 imagehash @ git+https://github.com/OpenNumismat/imagehash
+llvmlite~=0.45.1 # for build macOS x86_64
+pymatting==1.1.14 # fix version for rembg
