@@ -451,24 +451,8 @@ Please update OpenNumismat</source>
         <translation>Записано е резервно копие като %s</translation>
     </message>
     <message>
-        <source>Create mobile collection</source>
-        <translation>Създаване на мобилна колекция</translation>
-    </message>
-    <message>
         <source>Exporting records</source>
         <translation>Експортиране на записите</translation>
-    </message>
-    <message>
-        <source>Saving...</source>
-        <translation>Записване...</translation>
-    </message>
-    <message>
-        <source>Compact...</source>
-        <translation>Compact...</translation>
-    </message>
-    <message>
-        <source>Vacuum...</source>
-        <translation>Vacuum...</translation>
     </message>
     <message>
         <source>Save as</source>
@@ -1013,6 +997,10 @@ The application will need to restart now.</source>
         <translation>0 за съхранение в оригинален размер</translation>
     </message>
     <message>
+        <source>Image quality, %</source>
+        <translation>Качество на изображението, %</translation>
+    </message>
+    <message>
         <source>Preview image height</source>
         <translation>Височина на изображенията в предварителен преглед</translation>
     </message>
@@ -1055,6 +1043,10 @@ The application will need to restart now.</source>
     <message>
         <source>Preview image height was changed. Recalculate it now?</source>
         <translation>Височината на изображението в предварителен преглед беше променена. Да се преизчисли ли?</translation>
+    </message>
+    <message>
+        <source>Image settings was changed. Apply new settings to all stored images now (quality may be reduced)?</source>
+        <translation>Настройката за запазване на изображения беше променена. Да се приложи ли новата настройка към всички съхранени изображения в базата сега (възможно е качеството да се влоши)?</translation>
     </message>
     <message>
         <source>5 stars in rating</source>
@@ -1454,69 +1446,6 @@ and try again.</source>
 Do you want to send an error message to the author?</source>
         <translation>Възникна системна грешка.
 Искате ли да изпратите съобщението за грешката на автора?</translation>
-    </message>
-</context>
-<context>
-    <name>ExportDialog</name>
-    <message>
-        <source>Export to mobile</source>
-        <translation>Експортиране към мобилни устройства</translation>
-    </message>
-    <message>
-        <source>Target density of the display</source>
-        <translation>Показва плътността на пикселите</translation>
-    </message>
-    <message>
-        <source>Countries</source>
-        <translation>Държави</translation>
-    </message>
-    <message>
-        <source>Series</source>
-        <translation>Серия</translation>
-    </message>
-    <message>
-        <source>Denomination</source>
-        <translation>Деноминация</translation>
-    </message>
-    <message>
-        <source>Default filter by</source>
-        <translation>Филтър по подразбиране</translation>
-    </message>
-    <message>
-        <source>Image</source>
-        <translation>Изображение</translation>
-    </message>
-    <message>
-        <source>Obverse</source>
-        <translation>Лицева страна</translation>
-    </message>
-    <message>
-        <source>Reverse</source>
-        <translation>Обратна страна</translation>
-    </message>
-    <message>
-        <source>Both</source>
-        <translation>И двете</translation>
-    </message>
-    <message>
-        <source>Export a full-sized image</source>
-        <translation>Експорт на оригиналното изображение</translation>
-    </message>
-    <message>
-        <source>Destination</source>
-        <translation>Дестинация</translation>
-    </message>
-    <message>
-        <source>Select destination</source>
-        <translation>Избор на дестинация</translation>
-    </message>
-    <message>
-        <source>Create mobile collection</source>
-        <translation>Създаване на мобилна колекция</translation>
-    </message>
-    <message>
-        <source>Destination file not specified</source>
-        <translation>Местоназначението на файла не е посочено</translation>
     </message>
 </context>
 <context>
@@ -2143,6 +2072,13 @@ drag-n-drop to add an image)</source>
     </message>
 </context>
 <context>
+    <name>ImportNumista</name>
+    <message>
+        <source>Too many requests. Try later</source>
+        <translation>Твърде много заявки. Опитайте по-късно</translation>
+    </message>
+</context>
+<context>
     <name>ImportSettingsPage</name>
     <message>
         <source>Language</source>
@@ -2465,10 +2401,6 @@ drag-n-drop to add an image)</source>
         <translation>Експорт</translation>
     </message>
     <message>
-        <source>For Android version</source>
-        <translation>За Android версия</translation>
-    </message>
-    <message>
         <source>&amp;File</source>
         <translation>&amp;Файл</translation>
     </message>
@@ -2657,13 +2589,6 @@ drag-n-drop to add an image)</source>
     <message>
         <source>Year calculator</source>
         <translation>Преобразуване на година</translation>
-    </message>
-</context>
-<context>
-    <name>NumistaAuthentication</name>
-    <message>
-        <source>Numista</source>
-        <translation>Numista</translation>
     </message>
 </context>
 <context>
@@ -3065,11 +2990,15 @@ Please update OpenNumismat</source>
         <translation>Красиви години (Площна диаграма)</translation>
     </message>
     <message>
-        <source>Backround remover AI model</source>
-        <translation>AI модел за премахване на фона</translation>
+        <source>Background remover AI model</source>
+        <translation>AI модел за премахване на фон</translation>
     </message>
     <message>
-        <source>Window backgroud color</source>
+        <source>Crop after background remover</source>
+        <translation>Изрязване след премахване на фона</translation>
+    </message>
+    <message>
+        <source>Window background color</source>
         <translation>Цвят на фона на прозореца</translation>
     </message>
 </context>
@@ -3286,14 +3215,6 @@ Please update OpenNumismat</source>
         <translation>злато</translation>
     </message>
     <message>
-        <source>Gold coins: %d</source>
-        <translation>Златни монети: %d</translation>
-    </message>
-    <message>
-        <source>Gold coins: %d/%d</source>
-        <translation>Златни монети: %d/%d</translation>
-    </message>
-    <message>
         <source>(calculated for %d coins)</source>
         <translation>(изчислено за %d монета/и)</translation>
     </message>
@@ -3302,24 +3223,8 @@ Please update OpenNumismat</source>
         <translation>(изчислено за %d/%d монета/и)</translation>
     </message>
     <message>
-        <source>Gold weight: %s gramm</source>
-        <translation>Тегло на златото: %s г</translation>
-    </message>
-    <message>
         <source>Silver</source>
         <translation>сребро</translation>
-    </message>
-    <message>
-        <source>Silver coins: %d</source>
-        <translation>Сребърни монети: %d</translation>
-    </message>
-    <message>
-        <source>Silver coins: %d/%d</source>
-        <translation>Сребърни монети: %d/%d</translation>
-    </message>
-    <message>
-        <source>Silver weight: %s gramm</source>
-        <translation>Тегло на среброто: %s г</translation>
     </message>
     <message>
         <source>Count wish: %d</source>
@@ -3376,6 +3281,58 @@ Please update OpenNumismat</source>
     <message>
         <source>Count images: %d</source>
         <translation>Брой изображения: %d</translation>
+    </message>
+    <message>
+        <source>Platinum</source>
+        <translation>платина</translation>
+    </message>
+    <message>
+        <source>Palladium</source>
+        <translation>паладий</translation>
+    </message>
+    <message>
+        <source>Gold coins</source>
+        <translation>Златни монети (брой)</translation>
+    </message>
+    <message>
+        <source>Gold weight</source>
+        <translation>Злато (тегло)</translation>
+    </message>
+    <message>
+        <source>Silver coins</source>
+        <translation>Сребърни монети (брой)</translation>
+    </message>
+    <message>
+        <source>Silver weight</source>
+        <translation>Сребро (тегло)</translation>
+    </message>
+    <message>
+        <source>Platinum coins</source>
+        <translation>Платинени монети (брой)</translation>
+    </message>
+    <message>
+        <source>Platinum weight</source>
+        <translation>Платина (тегло)</translation>
+    </message>
+    <message>
+        <source>Palladium coins</source>
+        <translation>Паладиеви монети (брой)</translation>
+    </message>
+    <message>
+        <source>Palladium weight</source>
+        <translation>Паладий (тегло)</translation>
+    </message>
+    <message>
+        <source>calculated for %d coins</source>
+        <translation>изчислено за %d монета/и</translation>
+    </message>
+    <message>
+        <source>calculated for %d/%d coins</source>
+        <translation>изчислено за %d/%d монета/и</translation>
+    </message>
+    <message>
+        <source>gram</source>
+        <translation>г</translation>
     </message>
 </context>
 <context>
@@ -3457,10 +3414,10 @@ Please update OpenNumismat</source>
         <translation>Премахване на списък</translation>
     </message>
     <message>
-        <source>Can't close latest opened page.
+        <source>Can't close latest opened list.
 Add a new one first.</source>
         <translation>Не можете да затворите последния отворен списък.
-Първо добавете нов.</translation>
+Първо добавете нов списък.</translation>
     </message>
     <message>
         <source>Can't remove latest opened page.

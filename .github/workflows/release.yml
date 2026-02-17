@@ -17,13 +17,13 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install bump-my-version==0.32.1
+        python -m pip install click==8.2 bump-my-version==0.32.1
     - name: Get current version
       id: bump
       shell: bash
@@ -39,7 +39,7 @@ jobs:
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
     - name: install dependencies
@@ -82,7 +82,7 @@ jobs:
         github-artifact-id: '${{steps.upload-portable.outputs.artifact-id}}'
         output-artifact-directory: dist/${{ needs.title.outputs.APPNAME }}
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: package
       run: |
         cd dist
@@ -103,7 +103,7 @@ jobs:
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
     - name: install dependencies
@@ -140,7 +140,7 @@ jobs:
         github-artifact-id: '${{steps.upload-exe.outputs.artifact-id}}'
         output-artifact-directory: dist/${{ needs.title.outputs.APPNAME }}
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: package
       run: |
         ISCC.exe tools/setup.iss
@@ -162,57 +162,12 @@ jobs:
         github-artifact-id: '${{steps.upload.outputs.artifact-id}}'
         output-artifact-directory: .
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: upload-signed
       uses: actions/upload-artifact@v4
       with:
         name: ${{ needs.title.outputs.PACKAGENAME }}-signed
         path: ${{ needs.title.outputs.PACKAGENAME }}.exe
-        if-no-files-found: error
-
-  cx_freeze:
-    needs: [title]
-    name: cx_Freeze
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
-        fetch-depth: 0
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install -r requirements.txt
-        python -m pip install cx_freeze==7.2.10
-    - name: Create private keys
-      run: |
-        touch OpenNumismat/private_keys.py
-        echo "COLNECT_PROXY = '${{ secrets.COLNECT_PROXY }}'" >> OpenNumismat/private_keys.py
-        echo "COLNECT_KEY = '${{ secrets.COLNECT_KEY }}'" >> OpenNumismat/private_keys.py
-        echo "NUMISTA_API_KEY = '${{ secrets.NUMISTA_API_KEY }}'" >> OpenNumismat/private_keys.py
-        echo "MAPBOX_ACCESS_TOKEN = '${{ secrets.MAPBOX_ACCESS_TOKEN }}'" >> OpenNumismat/private_keys.py
-    - name: Patch portable
-      uses: ./.github/actions/replace-string-in-file
-      with:
-        file: OpenNumismat/version.py
-        old-string: "Portable = False"
-        new-string: "Portable = True"
-    - name: build
-      run: |
-        SET PYTHONOPTIMIZE=1
-        python setup.py build_exe
-    - name: package
-      run: |
-        cd build
-        7z a -r ../${{ needs.title.outputs.PACKAGENAME }}.zip ${{ needs.title.outputs.APPNAME }}
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.title.outputs.PACKAGENAME }}-cx_freeze
-        path: ${{ needs.title.outputs.PACKAGENAME }}.zip
         if-no-files-found: error
 
   nuitka:
@@ -224,7 +179,7 @@ jobs:
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
     - name: install dependencies
@@ -282,7 +237,7 @@ jobs:
         github-artifact-id: '${{steps.upload-nuitka-portable.outputs.artifact-id}}'
         output-artifact-directory: open-numismat.dist
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: package
       run: |
         cd open-numismat.dist
@@ -305,7 +260,7 @@ jobs:
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
     - name: install dependencies
@@ -357,7 +312,7 @@ jobs:
         github-artifact-id: '${{steps.upload-nuitka-exe.outputs.artifact-id}}'
         output-artifact-directory: open-numismat.dist
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: package
       run: |
         ISCC.exe tools/setup-nuitka.iss
@@ -379,7 +334,7 @@ jobs:
         github-artifact-id: '${{steps.upload.outputs.artifact-id}}'
         output-artifact-directory: .
         wait-for-completion: true
-        wait-for-completion-timeout-in-seconds: 1800
+        wait-for-completion-timeout-in-seconds: 3600
     - name: upload-signed
       uses: actions/upload-artifact@v4
       with:
@@ -452,13 +407,13 @@ jobs:
   macos:
     needs: [title]
     name: macOS
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
     - name: install dependencies
@@ -483,34 +438,31 @@ jobs:
         mkdir vol
         mv OpenNumismat.app vol
         ln -s /Applications vol/Applications
-        hdiutil create ${{ needs.title.outputs.PACKAGENAME }}-macos13.dmg -volname "${{ needs.title.outputs.PACKAGENAME }}" -srcfolder vol -fs HFSX -format UDZO -imagekey zlib-level=9
+        hdiutil create ${{ needs.title.outputs.PACKAGENAME }}-macos15.dmg -volname "${{ needs.title.outputs.PACKAGENAME }}" -srcfolder vol -fs HFSX -format UDZO -imagekey zlib-level=9
     - name: upload
       uses: actions/upload-artifact@v4
       with:
         name: ${{ needs.title.outputs.PACKAGENAME }}-dmg
-        path: dist/${{ needs.title.outputs.PACKAGENAME }}-macos13.dmg
+        path: dist/${{ needs.title.outputs.PACKAGENAME }}-macos15.dmg
         if-no-files-found: error
 
   macos-arm64:
     needs: [title]
     name: macOS arm64
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: '3.13'
     - name: install dependencies
       run: |
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
-        python -m pip install bump-my-version==0.32.1 pyinstaller
-    - name: Bump pre-release version
-      run: |
-        bump-my-version bump pre --no-commit --allow-dirty --verbose --serialize "{major}.{minor}.{patch}.{distance_to_latest_tag}"
+        python -m pip install pyinstaller
     - name: Create private keys
       run: |
         touch OpenNumismat/private_keys.py
@@ -528,17 +480,17 @@ jobs:
         mkdir vol
         mv OpenNumismat.app vol
         ln -s /Applications vol/Applications
-        hdiutil create ${{ needs.title.outputs.PACKAGENAME }}-macos14-arm64.dmg -volname "${{ needs.title.outputs.PACKAGENAME }}" -srcfolder vol -fs HFSX -format UDZO -imagekey zlib-level=9
+        hdiutil create ${{ needs.title.outputs.PACKAGENAME }}-macos15-arm64.dmg -volname "${{ needs.title.outputs.PACKAGENAME }}" -srcfolder vol -fs HFSX -format UDZO -imagekey zlib-level=9
     - name: upload
       uses: actions/upload-artifact@v4
       with:
         name: ${{ needs.title.outputs.PACKAGENAME }}-dmg-arm64
-        path: dist/${{ needs.title.outputs.PACKAGENAME }}-macos14-arm64.dmg
+        path: dist/${{ needs.title.outputs.PACKAGENAME }}-macos15-arm64.dmg
         if-no-files-found: error
 
   release:
     name: Create release
-    needs: [title, windows, innosetup, ubuntu, ubuntu-24, macos, macos-arm64, cx_freeze, nuitka, nuitka_innosetup]
+    needs: [title, windows, innosetup, ubuntu, ubuntu-24, macos, macos-arm64, nuitka, nuitka_innosetup]
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -566,13 +518,6 @@ jobs:
         upload_url: ${{ steps.release.outputs.upload_url }}
         asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-signed/${{ needs.title.outputs.PACKAGENAME }}.exe
         asset_name: ${{ needs.title.outputs.PACKAGENAME }}.exe
-        asset_content_type: application/octet-stream
-    - name: upload-cx_freeze
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.release.outputs.upload_url }}
-        asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-cx_freeze/${{ needs.title.outputs.PACKAGENAME }}.zip
-        asset_name: ${{ needs.title.outputs.PACKAGENAME }}-cx_freeze.zip
         asset_content_type: application/octet-stream
     - name: upload-nuitka
       uses: actions/upload-release-asset@v1
@@ -606,13 +551,13 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.release.outputs.upload_url }}
-        asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-dmg/${{ needs.title.outputs.PACKAGENAME }}-macos13.dmg
-        asset_name: ${{ needs.title.outputs.PACKAGENAME }}-macos13.dmg
+        asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-dmg/${{ needs.title.outputs.PACKAGENAME }}-macos15.dmg
+        asset_name: ${{ needs.title.outputs.PACKAGENAME }}-macos15.dmg
         asset_content_type: application/octet-stream
     - name: upload-macos-arm64
       uses: actions/upload-release-asset@v1
       with:
         upload_url: ${{ steps.release.outputs.upload_url }}
-        asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-dmg-arm64/${{ needs.title.outputs.PACKAGENAME }}-macos14-arm64.dmg
-        asset_name: ${{ needs.title.outputs.PACKAGENAME }}-macos14-arm64.dmg
+        asset_path: artifacts/${{ needs.title.outputs.PACKAGENAME }}-dmg-arm64/${{ needs.title.outputs.PACKAGENAME }}-macos15-arm64.dmg
+        asset_name: ${{ needs.title.outputs.PACKAGENAME }}-macos15-arm64.dmg
         asset_content_type: application/octet-stream

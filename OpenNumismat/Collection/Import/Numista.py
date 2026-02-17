@@ -6,7 +6,7 @@ import urllib3
 
 from PySide6.QtCore import Qt, QUrl, QMargins
 from PySide6.QtGui import QDesktopServices, QImage
-from PySide6.QtWidgets import QDialog, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QMessageBox, QVBoxLayout
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView as QWebView
 
@@ -65,7 +65,7 @@ class NumistaAuthentication(QDialog):
         layout.setContentsMargins(QMargins())
         self.setLayout(layout)
 
-        self.setWindowTitle(self.tr("Numista"))
+        self.setWindowTitle("Numista")
 
     def onLinkClicked(self, url):
         executor = QDesktopServices()
@@ -96,7 +96,7 @@ class ImportNumista(_Import2):
 
         self.split_denomination = settings['numista_split_denomination']
         self.currency = settings['numista_currency']
-        if settings['locale'] in ('fr', 'es'):
+        if settings['locale'] in ('fr', 'es', 'de', 'it', 'nl', 'pt', 'ru'):
             self.language = settings['locale']
         else:
             self.language = 'en'
@@ -110,19 +110,36 @@ class ImportNumista(_Import2):
                                         cert_reqs="CERT_NONE")
         self.cache = Cache()
 
+        self.already_warned = False
+
     @staticmethod
     def isAvailable():
         return numistaAvailable
     
-    def _download_cache(self, url):
+    def _download_cache(self, url, get_image=False):
         raw_data = self.cache.get(url)
         is_cashed = bool(raw_data)
         if not is_cashed:
             try:
-                resp = self.http.request("GET", url, headers={'Numista-API-Key': NUMISTA_API_KEY})
-                raw_data = resp.data.decode()
+                headers = None
+                if not get_image:
+                    headers = {'Numista-API-Key': NUMISTA_API_KEY}
+                resp = self.http.request("GET", url, headers=headers, retries=False)
+                if resp.status == 200:
+                    if not get_image:
+                        raw_data = resp.data.decode()
+                    else:
+                        raw_data = resp.data
+                elif resp.status == 429:
+                    if not self.already_warned:
+                        QMessageBox.warning(self.parent(), "Numista",
+                                self.tr("Too many requests. Try later"))
+                        self.already_warned = True
+                    return None
+                else:
+                    return None
             except:
-                return ''
+                return None
         
         if not is_cashed:
             self.cache.set(url, raw_data)
@@ -331,9 +348,11 @@ class ImportNumista(_Import2):
 
     def _getImage(self, url):
         try:
+            data = self._download_cache(url, True)
+            if not data:
+                return None
+
             image = QImage()
-            resp = self.http.request("GET", url, timeout=self.CONNECTION_TIMEOUT * 3)
-            data = resp.data
             image.loadFromData(data)
             return image
         except:

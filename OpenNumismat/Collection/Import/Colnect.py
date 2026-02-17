@@ -66,9 +66,10 @@ class ColnectConnector(QObject):
         # construct Record object from data json
         columns = {'coins': (('title', 'Name'), ('country', 'Country'), ('series', 'Series'), ('year', 'Issued on'),
                              ('mintage', 'Known mintage'), ('unit', 'Currency'), ('value', 'FaceValue'), ('material', 'Composition'),
-                             ('diameter', 'Diameter'), ('weight', 'Weight'), ('subject', 'Description'), ('type', 'Distribution'),
+                             ('weight', 'Weight'), ('subject', 'Description'), ('type', 'Distribution'),
                              ('issuedate', 'Issued on'), ('edge', 'EdgeVariety'), ('shape', 'Shape'), ('obvrev', 'Orientation'),
                              ('catalognum1', 'Catalog Codes'), ('thickness', 'Thickness'), ('fineness', 'Composition Details'),
+                             ('diameter', 'Width'),
                             ),
                    'banknotes': (('title', 'Name'), ('country', 'Country'), ('series', 'Series'), ('year', 'Issued on'),
                                  ('mintage', 'Mintage'), ('unit', 'Currency'), ('value', 'FaceValue'), ('material', 'Composition'),
@@ -124,6 +125,7 @@ class ColnectConnector(QObject):
                 elif type(value) is str:
                     result = ''
                     if '/1000' in value:
+                        value = value.replace('..', '-')  # fix 500..600/1000
                         pos = value.find('/1000') - 1
                         while pos >= 0 and value[pos] in '0123456789.,':
                             result = value[pos] + result
@@ -141,6 +143,7 @@ class ColnectConnector(QObject):
                             result += value[pos]
                             pos += 1
                     elif '%' in value:
+                        value = value.replace('..', '-')  # fix 10..20%
                         pos = value.find('%') - 1
                         while pos >= 0 and value[pos] in '0123456789.,':
                             result = value[pos] + result
@@ -253,9 +256,9 @@ class ColnectConnector(QObject):
 
     def _makeQuery(self, category, country=None, series=None,
                  distribution=None, year=None, value=None, currency=None):
-        params = "/cat/%s" % category
+        params = f"/cat/{category}"
         if country:
-            params += f"/producer/{country}"
+            params += f"/country/{country}"
         if series:
             params += f"/series/{series}"
         if distribution:
@@ -297,7 +300,7 @@ class ColnectConnector(QObject):
         except:
             return []
 
-        if resp.status == 404:
+        if resp.status in (404, 502):
             QMessageBox.warning(self.parent(), "Colnect",
                                 self.tr("Colnect proxy-server not response"))
             return []
@@ -341,6 +344,7 @@ class ColnectConnector(QObject):
         if 'error' in data:
             QMessageBox.warning(self.parent(), "Colnect",
                                 self.tr("Colnect service not available"))
+            return []
         self.cache.set(url, raw_data)  # self.cache.set(url, json.dumps(data, ensure_ascii=False))
 
         return data
@@ -353,14 +357,14 @@ class ColnectConnector(QObject):
         return item_ids
     
     def getCountries(self, category):
-        action = "countries/cat/%s" % category
+        action = f"countries/cat/{category}"
         return self.getData(action)
 
     def getYears(self, category, country, series=None, distribution=None,
                   value=None, currency=None):
         action = "years" + self._makeQuery(category, country, series,
                  distribution, None, value, currency)
-        return self.getData(action)
+        return self.getData(action, 'en')
 
     def getSeries(self, category, country, distribution=None, year=None,
                   value=None, currency=None):
@@ -369,7 +373,7 @@ class ColnectConnector(QObject):
         return self.getData(action)
 
     def getColors(self, category):
-        action = "colors/cat/%s/producer/252" % category    # TODO: Remove producer filter
+        action = f"colors/cat/{category}"
         return self.getData(action)
 
     def getDistributions(self, category, country, series=None, year=None,
@@ -389,7 +393,7 @@ class ColnectConnector(QObject):
                   year=None, currency=None):
         action = "face_values" + self._makeQuery(category, country, series,
                  distribution, year, None, currency)
-        return self.getData(action)
+        return self.getData(action, 'en')
 
     def getCurrencies(self, category, country, series=None, distribution=None,
                       year=None, value=None):
@@ -853,7 +857,7 @@ class ColnectDialog(QDialog):
                     record.setValue('status', self.model.settings['default_status'])
                 self.model.appendRecord(record)
             else:
-                btn = self.model.addCoins(record, len(indexes) - progress)
+                btn = self.model.addCoins(record, len(indexes) - progress, self)
                 if btn == QDialogButtonBox.Abort:
                     break
                 if btn == QDialogButtonBox.SaveAll:
@@ -896,7 +900,7 @@ class ImportColnect(_Import2):
 
     @staticmethod
     def isAvailable():
-        return True
+        return colnectAvailable
 
     def _connect(self, src):
         csvFile = io.open(src, "r", encoding='utf-8-sig')
@@ -925,5 +929,9 @@ class ImportColnect(_Import2):
         item_id = url_parts[3]
         action = "item/cat/%s/id/%s" % (category, item_id)
         data = self.colnect.getData(action)
-        data.append(url)
-        self.colnect.makeItem(category, data, record)
+        if data:
+            data.append(url)
+            self.colnect.makeItem(category, data, record)
+
+    def _close(self, _connection):
+        self.colnect.close()

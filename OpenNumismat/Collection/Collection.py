@@ -9,7 +9,6 @@ import shutil
 from PySide6.QtCore import (
     Qt,
     QBuffer,
-    QByteArray,
     QCryptographicHash,
     QDate,
     QDateTime,
@@ -22,6 +21,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QObject,
     QRectF,
+    QSize,
     QT_TRANSLATE_NOOP,
 )
 from PySide6.QtCore import Signal as pyqtSignal
@@ -53,7 +53,6 @@ from OpenNumismat.Tools import Gui
 from OpenNumismat.Tools.Gui import infoMessageBox
 from OpenNumismat.Settings import Settings, BaseSettings
 from OpenNumismat import version
-from OpenNumismat.Collection.Export import ExportDialog
 from OpenNumismat.Tools.Converters import numberWithFraction, htmlToPlainText
 
 
@@ -62,7 +61,6 @@ class CollectionModel(QSqlTableModel):
     modelChanged = pyqtSignal()
     tagsChanged = pyqtSignal()
     IMAGE_FORMAT = 'webp'
-    IMAGE_QUALITY = 80
     SQLITE_READONLY = '8'
 
     def __init__(self, collection, parent=None):
@@ -179,6 +177,27 @@ class CollectionModel(QSqlTableModel):
             field = self.fields.fields[index.column()]
             if field.type == Type.BigInt:
                 return Qt.AlignRight | Qt.AlignVCenter
+        elif role == Qt.SizeHintRole:
+            field = self.fields.fields[index.column()]
+            if field.type in (Type.PreviewImage, Type.Image):
+                data = super().data(index, Qt.DisplayRole)
+                if data:
+                    tmp = QTableView()
+                    height_multiplex = self.settings['image_height']
+                    height = int(tmp.verticalHeader().defaultSectionSize() * height_multiplex - 1)
+
+                    if field.type == Type.PreviewImage:
+                        img = self.getPreviewImage(data)
+                        image = QImage()
+                        image.loadFromData(img)
+                        return QSize(image.width(), height)
+                    elif field.type == Type.Image:
+                        img = self.getImage(data)
+                        image = QImage()
+                        image.loadFromData(img)
+                        if image.height():
+                            width = math.ceil(image.width() / image.height() * height)
+                            return QSize(width, height)
 
         return super().data(index, role)
 
@@ -256,7 +275,7 @@ class CollectionModel(QSqlTableModel):
             if value:
                 query = QSqlQuery(self.database())
                 query.prepare("INSERT INTO photos (title, image) VALUES (?, ?)")
-                query.addBindValue(record.value(field + '_title'))
+                query.addBindValue(record.value(f"{field}_title"))
                 query.addBindValue(value)
                 query.exec()
 
@@ -265,8 +284,8 @@ class CollectionModel(QSqlTableModel):
                 img_id = None
 
             record.setValue(field, img_id)
-            record.remove(record.indexOf(field + '_id'))
-            record.remove(record.indexOf(field + '_title'))
+            record.remove(record.indexOf(f"{field}_id"))
+            record.remove(record.indexOf(f"{field}_title"))
 
         value = record.value('image')
         if value:
@@ -291,7 +310,7 @@ class CollectionModel(QSqlTableModel):
         self.database().transaction()
         # TODO : check that images was realy changed
         for field in ImageFields:
-            img_id = record.value(field + '_id')
+            img_id = record.value(f"{field}_id")
             value = record.value(field)
             if not value:
                 if img_id:
@@ -305,14 +324,14 @@ class CollectionModel(QSqlTableModel):
                 if img_id:
                     query = QSqlQuery(self.database())
                     query.prepare("UPDATE photos SET title=?, image=? WHERE id=?")
-                    query.addBindValue(record.value(field + '_title'))
+                    query.addBindValue(record.value(f"{field}_title"))
                     query.addBindValue(record.value(field))
                     query.addBindValue(img_id)
                     query.exec()
                 else:
                     query = QSqlQuery(self.database())
                     query.prepare("INSERT INTO photos (title, image) VALUES (?, ?)")
-                    query.addBindValue(record.value(field + '_title'))
+                    query.addBindValue(record.value(f"{field}_title"))
                     query.addBindValue(record.value(field))
                     query.exec()
 
@@ -322,8 +341,8 @@ class CollectionModel(QSqlTableModel):
                 record.setValue(field, img_id)
             else:
                 record.setNull(field)
-            record.remove(record.indexOf(field + '_id'))
-            record.remove(record.indexOf(field + '_title'))
+            record.remove(record.indexOf(f"{field}_id"))
+            record.remove(record.indexOf(f"{field}_title"))
 
         img_id = record.value('image_id')
         value = record.value('image')
@@ -416,15 +435,15 @@ class CollectionModel(QSqlTableModel):
             record = super().record()
 
         for field in ImageFields:
-            record.append(QSqlField(field + '_title'))
-            record.append(QSqlField(field + '_id'))
+            record.append(QSqlField(f"{field}_title"))
+            record.append(QSqlField(f"{field}_id"))
 
             img_id = record.value(field)
             if img_id:
                 data = self.getImage(img_id)
                 record.setValue(field, data)
-                record.setValue(field + '_title', self.getImageTitle(img_id))
-                record.setValue(field + '_id', img_id)
+                record.setValue(f"{field}_title", self.getImageTitle(img_id))
+                record.setValue(f"{field}_id", img_id)
             else:
                 record.setValue(field, None)
 
@@ -523,32 +542,8 @@ class CollectionModel(QSqlTableModel):
         if self.proxy:
             self.proxy.setDynamicSortFilter(False)
 
-        for field in self.fields.userFields:
-            if field.type == Type.Image:
-                # Convert image to DB format
-                image = record.value(field.name)
-                if isinstance(image, str):
-                    # Copying record as text (from Excel) store missed images
-                    # as string
-                    record.setNull(field.name)
-                elif isinstance(image, QImage):
-                    buffer = QBuffer()
-                    buffer.open(QIODevice.WriteOnly)
-
-                    # Resize big images for storing in DB
-                    sideLen = self.settings['ImageSideLen']
-                    if sideLen > 0:
-                        maxWidth = sideLen
-                        maxHeight = sideLen
-                        if image.width() > maxWidth or image.height() > maxHeight:
-                            image = image.scaled(maxWidth, maxHeight,
-                                    Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-                    image.save(buffer, self.IMAGE_FORMAT, self.IMAGE_QUALITY)
-                    record.setValue(field.name, buffer.data())
-                elif isinstance(image, bytes):
-                    ba = QByteArray(image)
-                    record.setValue(field.name, ba)
+        # Convert images to DB format and size
+        self._recalculatePhotos(record)
 
         # Creating preview image for list
         self._recalculateImage(record)
@@ -556,6 +551,42 @@ class CollectionModel(QSqlTableModel):
         currentTime = QDateTime.currentDateTimeUtc()
         # currentTime.setTimeSpec(Qt.LocalTime)
         record.setValue('updatedat', currentTime.toString(Qt.ISODateWithMs))
+
+    # Convert QImage to DB format and size bytes
+    def _recalculatePhoto(self, image):
+        imageSideLen = self.settings['ImageSideLen']
+        imageQuality = self.settings['image_quality']
+
+        buffer = QBuffer()
+        buffer.open(QIODevice.WriteOnly)
+
+        # Resize big images for storing in DB
+        if imageSideLen > 0:
+            maxWidth = imageSideLen
+            maxHeight = imageSideLen
+            if image.width() > maxWidth or image.height() > maxHeight:
+                image = image.scaled(maxWidth, maxHeight,
+                        Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        image.save(buffer, self.IMAGE_FORMAT, imageQuality)
+
+        return buffer.data()
+
+    def _recalculatePhotos(self, record):
+        for field in ImageFields:
+            image = record.value(field)
+            if isinstance(image, str):
+                # Copying record as text (from Excel) store missed images
+                # as string
+                record.setNull(field)
+            elif isinstance(image, QImage) or isinstance(image, bytes):
+                if isinstance(image, bytes):
+                    img = QImage()
+                    img.loadFromData(image)
+                    image = img
+
+                value = self._recalculatePhoto(image)
+                record.setValue(field, value)
 
     def _recalculateImage(self, record):
         # Creating preview image for list
@@ -674,6 +705,46 @@ class CollectionModel(QSqlTableModel):
                 query.addBindValue(record.value('image'))
                 query.addBindValue(img_id)
                 query.exec()
+
+        progressDlg.setLabelText(self.tr("Saving..."))
+
+        self.database().commit()
+
+        progressDlg.reset()
+
+    def recalculateAllPhotos(self, parent=None):
+        while self.canFetchMore():
+            self.fetchMore()
+        rowCount = self.rowCount()
+
+        if not parent:
+            parent = self.parent()
+
+        progressDlg = Gui.ProgressDialog(self.tr("Updating records"),
+                                         self.tr("Cancel"), rowCount, parent)
+
+        self.database().transaction()
+
+        for row in range(rowCount):
+            progressDlg.step()
+            if progressDlg.wasCanceled():
+                break
+
+            record = self.record(row)
+            self._recalculatePhotos(record)
+            for field in ImageFields:
+                photo_id = record.value(f"{field}_id")
+                photo = record.value(field)
+                if photo and photo_id:
+                    image = QImage()
+                    image.loadFromData(photo)
+                    photo = self._recalculatePhoto(image)
+
+                    query = QSqlQuery(self.database())
+                    query.prepare("UPDATE photos SET image=? WHERE id=?")
+                    query.addBindValue(photo)
+                    query.addBindValue(photo_id)
+                    query.exec()
 
         progressDlg.setLabelText(self.tr("Saving..."))
 
@@ -867,6 +938,7 @@ class CollectionSettings(BaseSettings):
             'current_page': 0,
             'images_view_mask': (1 << 1) | (1 << 0),
             'sort_by_reference': True,
+            'image_quality': 80,
     }
 
     def __init__(self, db):
@@ -1074,7 +1146,13 @@ class Collection(QObject):
         sql = "CREATE TABLE coins (" + ", ".join(sqlFields) + ")"
         QSqlQuery(sql, self.db)
 
-        sql = "CREATE TABLE photos (id INTEGER PRIMARY KEY, title TEXT, image BLOB)"
+        sql = """CREATE TABLE photos (
+                    id INTEGER PRIMARY KEY,
+                    title TEXT,
+                    image BLOB,
+                    author TEXT,
+                    license TEXT,
+                    source TEXT)"""
         QSqlQuery(sql, self.db)
 
         sql = "CREATE TABLE images (id INTEGER PRIMARY KEY, image BLOB)"
@@ -1085,7 +1163,9 @@ class Collection(QObject):
                     id INTEGER NOT NULL PRIMARY KEY,
                     tag TEXT,
                     parent_id INTEGER,
-                    position INTEGER)"""
+                    position INTEGER,
+                    description TEXT,
+                    icon BLOB)"""
         QSqlQuery(sql, self.db)
 
         sql = """CREATE TABLE coins_tags (
@@ -1306,14 +1386,16 @@ class Collection(QObject):
                 res = query.exec()
 
             if res:
-                self.db.commit()
+                res = self.db.commit()
+
+            if res:
                 self.reference = reference
             else:
                 self.db.rollback()
                 QMessageBox.critical(self.parent(),
                             self.tr("Create reference"),
                             self.tr("Can't clear attached reference:\n%s") %
-                                    query.lastError().text())
+                                    query.lastError().text() + self.db.lastError().text())
 
             QSqlQuery("DETACH ref", reference.db)
 
@@ -1412,242 +1494,6 @@ class Collection(QObject):
         file = QFileInfo(fileName)
         return file.baseName()
 
-    def exportToMobile(self, params):
-        IMAGE_FORMAT = 'jpg'
-        SKIPPED_FIELDS = ('signatureimg', 'varietyimg', 'edgeimg', 'photo1', 'photo2', 'photo3', 'photo4', 'photo5', 'photo6',
-            'obversedesigner', 'reversedesigner', 'catalognum2', 'catalognum3', 'catalognum4',
-            'saledate', 'saleprice', 'totalsaleprice', 'buyer', 'saleplace', 'saleinfo',
-            'paydate', 'payprice', 'totalpayprice', 'saller', 'payplace', 'payinfo',
-            'url', 'obversedesigner', 'reversedesigner')
-
-        if os.path.isfile(params['file']):
-            os.remove(params['file'])
-
-        db = QSqlDatabase.addDatabase('QSQLITE', 'mobile')
-        db.setDatabaseName(params['file'])
-        if not db.open():
-            print(db.lastError().text())
-            QMessageBox.critical(self.parent(),
-                                       self.tr("Create mobile collection"),
-                                       self.tr("Can't open collection"))
-            return
-
-        mobile_settings = {'Version': 5, 'Type': 'Mobile', 'Filter': params['filter']}
-
-        QSqlQuery("PRAGMA synchronous=OFF", db)
-        QSqlQuery("PRAGMA journal_mode=MEMORY", db)
-
-        sql = """CREATE TABLE settings (
-            title CHAR NOT NULL UNIQUE,
-            value CHAR)"""
-        QSqlQuery(sql, db)
-        for key, value in mobile_settings.items():
-            query = QSqlQuery(db)
-            query.prepare("""INSERT INTO settings (title, value)
-                    VALUES (?, ?)""")
-            query.addBindValue(key)
-            query.addBindValue(str(value))
-            query.exec()
-
-        sql = """CREATE TABLE updates (
-            title CHAR NOT NULL UNIQUE,
-            value CHAR)"""
-        QSqlQuery(sql, db)
-
-        sql = """CREATE TABLE photos (
-            id INTEGER PRIMARY KEY,
-            image BLOB)"""
-        QSqlQuery(sql, db)
-
-        sqlFields = []
-        fields = CollectionFieldsBase()
-        for field in fields:
-            if field.name == 'id':
-                sqlFields.append('id INTEGER PRIMARY KEY')
-            elif field.name == 'image':
-                sqlFields.append('image INTEGER')
-            elif field.name in SKIPPED_FIELDS:
-                continue
-            else:
-                sqlFields.append("%s %s" % (field.name, Type.toSql(field.type)))
-
-        sql = "CREATE TABLE coins (" + ", ".join(sqlFields) + ")"
-        QSqlQuery(sql, db)
-
-        model = self.model()
-        while model.canFetchMore():
-            model.fetchMore()
-
-        dest_model = QSqlTableModel(self.parent(), db)
-        dest_model.setEditStrategy(QSqlTableModel.OnManualSubmit)
-        dest_model.setTable('coins')
-        dest_model.select()
-
-        height = 64
-        if params['density'] == 'HDPI':
-            height = int(height * 1.5)
-        elif params['density'] == 'XHDPI':
-            height *= 2
-        elif params['density'] == 'XXHDPI':
-            height *= 3
-        elif params['density'] == 'XXXHDPI':
-            height *= 4
-        maxHeight = height * 4
-
-        is_obverse_enabled = params['image'] in (ExportDialog.IMAGE_OBVERSE, ExportDialog.IMAGE_BOTH)
-        is_reverse_enabled = params['image'] in (ExportDialog.IMAGE_REVERSE, ExportDialog.IMAGE_BOTH)
-
-        fields = CollectionFieldsBase()
-        count = model.rowCount()
-        progressDlg = Gui.ProgressDialog(self.tr("Exporting records"),
-                                        self.tr("Cancel"), count, self.parent())
-
-        for i in range(count):
-            progressDlg.step()
-            if progressDlg.wasCanceled():
-                break
-
-            coin = model.record(i)
-            if coin.value('status') in ('pass', 'sold'):
-                continue
-
-            dest_record = dest_model.record()
-
-            for field in fields:
-                if field.name in ('id', 'image', 'obverseimg', 'reverseimg'):
-                    continue
-                if field.name in SKIPPED_FIELDS:
-                    continue
-
-                val = coin.value(field.name)
-                if val is None or val == '':
-                    continue
-
-                dest_record.setValue(field.name, val)
-
-            # Process images
-            is_obverse_present = not coin.isNull('obverseimg')
-            is_reverse_present = not coin.isNull('reverseimg')
-            if is_obverse_present or is_reverse_present:
-                obverseImage = QImage()
-                reverseImage = QImage()
-
-                if is_obverse_present:
-                    buffer = QBuffer()
-                    buffer.open(QIODevice.WriteOnly)
-
-                    obverseImage.loadFromData(coin.value('obverseimg'))
-                    if not obverseImage.isNull() and not params['fullimage'] and obverseImage.height() > maxHeight:
-                        scaledImage = obverseImage.scaled(maxHeight, maxHeight,
-                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                        scaledImage.save(buffer, IMAGE_FORMAT, 50)
-                        save_data = buffer.data()
-                    else:
-                        if not obverseImage.isNull():
-                            obverseImage.save(buffer, IMAGE_FORMAT, 50)
-                            save_data = buffer.data()
-                        else:
-                            save_data = coin.value('obverseimg')
-
-                    query = QSqlQuery(db)
-                    query.prepare("""INSERT INTO photos (image)
-                            VALUES (?)""")
-                    query.addBindValue(save_data)
-                    query.exec()
-                    img_id = query.lastInsertId()
-                    dest_record.setValue('obverseimg', img_id)
-                if not obverseImage.isNull():
-                    obverseImage = obverseImage.scaledToHeight(height,
-                                                            Qt.SmoothTransformation)
-
-                if is_reverse_present:
-                    buffer = QBuffer()
-                    buffer.open(QIODevice.WriteOnly)
-
-                    reverseImage.loadFromData(coin.value('reverseimg'))
-                    if not reverseImage.isNull() and not params['fullimage'] and reverseImage.height() > maxHeight:
-                        scaledImage = reverseImage.scaled(maxHeight, maxHeight,
-                                Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                        scaledImage.save(buffer, IMAGE_FORMAT, 50)
-                        save_data = buffer.data()
-                    else:
-                        if not reverseImage.isNull():
-                            reverseImage.save(buffer, IMAGE_FORMAT, 50)
-                            save_data = buffer.data()
-                        else:
-                            save_data = coin.value('reverseimg')
-
-                    query = QSqlQuery(db)
-                    query.prepare("""INSERT INTO photos (image)
-                            VALUES (?)""")
-                    query.addBindValue(save_data)
-                    query.exec()
-                    img_id = query.lastInsertId()
-                    dest_record.setValue('reverseimg', img_id)
-                if not reverseImage.isNull():
-                    reverseImage = reverseImage.scaledToHeight(height,
-                                                        Qt.SmoothTransformation)
-
-                if not is_obverse_enabled:
-                    obverseImage = QImage()
-                if not is_reverse_enabled:
-                    reverseImage = QImage()
-
-                image = QImage(obverseImage.width() + reverseImage.width(),
-                                     height, QImage.Format_RGB32)
-                image.fill(Qt.white)
-
-                paint = QPainter(image)
-                if is_obverse_present and is_obverse_enabled:
-                    paint.drawImage(QRectF(0, 0, obverseImage.width(), height), obverseImage,
-                                    QRectF(0, 0, obverseImage.width(), height))
-                if is_reverse_present and is_reverse_enabled:
-                    paint.drawImage(QRectF(obverseImage.width(), 0, reverseImage.width(), height), reverseImage,
-                                    QRectF(0, 0, reverseImage.width(), height))
-                paint.end()
-
-                buffer = QBuffer()
-                buffer.open(QIODevice.WriteOnly)
-
-                # Store as PNG for better view
-                image.save(buffer, 'png')
-                dest_record.setValue('image', buffer.data())
-
-            dest_model.insertRecord(-1, dest_record)
-
-        progressDlg.setLabelText(self.tr("Saving..."))
-        dest_model.submitAll()
-
-        progressDlg.setLabelText(self.tr("Compact..."))
-        QSqlQuery("""UPDATE coins
-            SET
-              reverseimg = (select t2.id from coins t3 join (select id, image from photos group by image having count(*) > 1) t2 on t1.image = t2.image join photos t1 on t3.reverseimg = t1.id where t1.id <> t2.id and t3.id = coins.id)
-            WHERE coins.id in (select t3.id from coins t3 join (select id, image from photos group by image having count(*) > 1) t2 on t1.image = t2.image join photos t1 on t3.reverseimg = t1.id where t1.id <> t2.id)
-            """, db)
-        QSqlQuery("""UPDATE coins
-            SET
-              obverseimg = (select t2.id from coins t3 join (select id, image from photos group by image having count(*) > 1) t2 on t1.image = t2.image join photos t1 on t3.obverseimg = t1.id where t1.id <> t2.id and t3.id = coins.id)
-            WHERE coins.id in (select t3.id from coins t3 join (select id, image from photos group by image having count(*) > 1) t2 on t1.image = t2.image join photos t1 on t3.obverseimg = t1.id where t1.id <> t2.id)
-            """, db)
-
-        QSqlQuery("""DELETE FROM photos
-            WHERE id NOT IN (SELECT id FROM photos GROUP BY image)""", db)
-
-        db.close()
-        QSqlDatabase.removeDatabase('mobile')
-
-        progressDlg.setLabelText(self.tr("Vacuum..."))
-        db = QSqlDatabase.addDatabase('QSQLITE', 'mobile')
-        db.setDatabaseName(params['file'])
-        db.open()
-        QSqlQuery("PRAGMA synchronous=OFF", db)
-        QSqlQuery("PRAGMA journal_mode=MEMORY", db)
-        QSqlQuery("VACUUM", db)
-        db.close()
-        QSqlDatabase.removeDatabase('mobile')
-
-        progressDlg.reset()
-        
     def exportToJson(self):
         file = self.getFileName()
         json_file_name = '.json'.join(file.rsplit('.db', 1))
@@ -1706,7 +1552,10 @@ class Collection(QObject):
                         if hash_ in img_file_dict:
                             img_file_title = img_file_dict[hash_]
                         else:
-                            img_file_title = "%d_%s.jpg" % (i + 1, field.name)
+                            if val.data()[:4] == b"RIFF":
+                                img_file_title = f"{i + 1}_{field.name}.webp"
+                            else:
+                                img_file_title = f"{i + 1}_{field.name}.jpg"
                             img_file_name = os.path.join(image_path, img_file_title)
                             img_file = open(img_file_name, 'wb')
                             img_file.write(val.data())

@@ -107,7 +107,7 @@ class DoubleValidator(QDoubleValidator):
 
 class DenominationValidator(DoubleValidator):
     def __init__(self, parent=None):
-        super().__init__(0, 9999999999., 2, parent)
+        super().__init__(0, 9999999999999., 2, parent)
         self.setNotation(QDoubleValidator.StandardNotation)
 
     def validate(self, input_, pos):
@@ -884,6 +884,17 @@ class _DoubleEdit(QLineEdit):
                 super().setText(text)
 
 
+class FinenessEdit(_DoubleEdit):
+
+    def __init__(self, parent=None):
+        super().__init__(0, 9999., 4, parent)  # 4 decimals for .9999
+
+        self.setMaxLength(6)  # 0.9999
+        self.setMinimumWidth(50)
+        self.setSizePolicy(QSizePolicy(QSizePolicy.Minimum,
+                                       QSizePolicy.Fixed, QSizePolicy.SpinBox))
+
+
 class BigIntEdit(_DoubleEdit):
     def __init__(self, parent=None):
         super().__init__(0, 999999999999999., 0, parent)
@@ -970,7 +981,8 @@ class UserDenominationEdit(UserNumericEdit):
 class DenominationEdit(MoneyEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
-        
+        self.setMaxLength(20)
+
         validator = DenominationValidator()
         self.setValidator(validator)
 
